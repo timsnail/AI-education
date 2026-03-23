@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web3 教育獎勵測試</title>
+</head>
+<body>
+  <h1>Web3 教育獎勵測試 🚀</h1>
+
+  <button onclick="connectWallet()">連接錢包</button>
+  <button onclick="getBalance()">查詢 QZT 餘額</button>
+
+  <p id="walletAddress">尚未連接</p>
+  <p id="balance">QZT 餘額：尚未讀取</p>
+
+  <hr>
+
+  <h2>發放學習獎勵</h2>
+
+  <label for="studentAddress">學生錢包地址：</label><br>
+  <input id="studentAddress" type="text" placeholder="輸入學生地址" style="width: 420px;" />
+  <br><br>
+
+  <label for="rewardReason">獎勵原因：</label><br>
+  <input id="rewardReason" type="text" placeholder="例如：完成今日數學作業" style="width: 420px;" />
+  <br><br>
+
+  <label for="rewardAmount">獎勵 QZT 數量：</label><br>
+  <input id="rewardAmount" type="number" step="0.0001" placeholder="例如：10" />
+  <br><br>
+
+  <button onclick="rewardStudent()">發放獎勵</button>
+
+  <p id="txStatus">交易狀態：尚未發放</p>
+
+  <h3>發放紀錄</h3>
+  <ul id="rewardHistory"></ul>
+  <h2>AI 判題測試</h2>
+
+  <p id="questionText">
+    小明買了3支鉛筆，每支12元，又買了1本筆記本25元，總共多少元？
+  </p>
+
+  <textarea id="studentAnswer" rows="6" cols="60" placeholder="請輸入你的答案"></textarea>
+  <br><br>
+
+  <input id="studentWallet" type="text" placeholder="輸入學生錢包地址" style="width: 420px;" />
+  <br><br>
+
+  <button onclick="submitAnswer()">送出答案</button>
+
+  <p id="result">尚未送出</p>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
