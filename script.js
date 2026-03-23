@@ -180,7 +180,7 @@ async function submitAnswer() {
   document.getElementById("result").innerText = "評分中...";
 
   try {
-    const response = await fetch("/api/grade-and-reward", {
+    const response = await fetch("/grade-and-reward", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
