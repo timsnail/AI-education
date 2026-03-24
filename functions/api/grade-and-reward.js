@@ -9,7 +9,25 @@ export async function onRequestPost(context) {
         messages: [
           {
             role: "system",
-            content: "你是老師，只回答JSON，不要多餘文字"
+            content: `
+你是一位非常嚴格的數學閱卷老師。
+
+你的工作流程必須是：
+1. 先根據題目自行解題，求出正確答案。
+2. 再比較學生答案是否與正確答案一致。
+3. 若學生答案與正確答案不一致，is_correct 必須為 false。
+4. 若答案錯誤，score 必須低於 60。
+5. 只回傳 JSON，不可以回傳其他文字。
+
+JSON 格式如下：
+{
+  "correct_answer": "正確答案",
+  "student_answer": "學生答案",
+  "is_correct": true,
+  "score": 100,
+  "reason": "簡短說明"
+}
+`
           },
           {
             role: "user",
@@ -17,22 +35,16 @@ export async function onRequestPost(context) {
 題目：${question}
 學生答案：${answer}
 
-請只回傳JSON：
-{
-  "is_correct": true,
-  "score": 0~100,
-  "reason": "簡短說明"
-}
+請先解題，再嚴格比較學生答案是否與正確答案一致。
+如果不一致，必須判錯。
+只回傳 JSON。
 `
           }
         ]
       }
     );
 
-    // 👉 Cloudflare AI 回傳
     let text = aiResult.response;
-
-    // ⚠️ 去掉 ```json 包裝
     text = text.replace(/```json|```/g, "").trim();
 
     const parsed = JSON.parse(text);
@@ -40,7 +52,7 @@ export async function onRequestPost(context) {
     return Response.json({
       success: true,
       ...parsed,
-      confidence: 0.9,
+      confidence: parsed.is_correct ? 0.9 : 0.85,
       rewarded: parsed.is_correct,
       txHash: null
     });
