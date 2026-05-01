@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="知鏈學習平台 MVP：知識問答、學習筆記、EDU 點數與兌換商城。">
+  <title>知鏈學習平台 | Learn-to-Earn MVP</title>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#dashboard" data-view="dashboard" aria-label="回到儀表板">
+        <span class="brand-mark">EDU</span>
+        <span>
+          <strong>知鏈學習平台</strong>
+          <small>知識互助 × EDU 點數</small>
+        </span>
+      </a>
+
+      <div class="top-actions">
+        <div class="wallet-card" aria-live="polite">
+          <i data-lucide="wallet"></i>
+          <span id="walletLabel">訪客模式</span>
+        </div>
+        <button class="icon-button" id="connectWalletBtn" type="button" aria-label="連接錢包" title="連接錢包">
+          <i data-lucide="plug-zap"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <nav class="nav-list" aria-label="主要導覽">
+          <button class="nav-button active" type="button" data-view="dashboard">
+            <i data-lucide="layout-dashboard"></i>
+            <span>總覽</span>
+          </button>
+          <button class="nav-button" type="button" data-view="questions">
+            <i data-lucide="messages-square"></i>
+            <span>問答</span>
+          </button>
+          <button class="nav-button" type="button" data-view="notes">
+            <i data-lucide="book-open-check"></i>
+            <span>筆記</span>
+          </button>
+          <button class="nav-button" type="button" data-view="market">
+            <i data-lucide="shopping-bag"></i>
+            <span>商城</span>
+          </button>
+          <button class="nav-button" type="button" data-view="trust">
+            <i data-lucide="shield-check"></i>
+            <span>信譽</span>
+          </button>
+        </nav>
+
+        <figure class="learning-photo">
+          <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80" alt="學生圍坐討論學習內容">
+          <figcaption>
+            <span>第一年目標</span>
+            <strong>5,000 名學生</strong>
+          </figcaption>
+        </figure>
+      </aside>
+
+      <main class="main-panel">
+        <section class="view active" id="dashboard">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Learn-to-Earn MVP</p>
+              <h1>讓每一個學生，都能用知識交換成長機會。</h1>
+            </div>
+            <button class="primary-action" id="dailyCheckinBtn" type="button">
+              <i data-lucide="sparkles"></i>
+              <span>今日簽到</span>
+            </button>
+          </div>
+
+          <div class="stats-grid" id="statsGrid"></div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>學習任務</h2>
+                <span class="tag">MVP</span>
+              </div>
+              <div class="mission-list" id="missionList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>熱門題目</h2>
+                <button class="ghost-button" type="button" data-view="questions">前往問答</button>
+              </div>
+              <div class="compact-list" id="hotQuestions"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="questions">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Q&A Board</p>
+              <h1>知識問答</h1>
+            </div>
+            <select class="control" id="subjectFilter" aria-label="科目篩選">
+              <option value="all">全部科目</option>
+              <option value="數學">數學</option>
+              <option value="英文">英文</option>
+              <option value="自然">自然</option>
+              <option value="社會">社會</option>
+              <option value="國文">國文</option>
+            </select>
+          </div>
+
+          <div class="qa-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>發布題目</h2>
+                <span class="tag">+5 EDU</span>
+              </div>
+              <form class="stack-form" id="questionForm">
+                <label>
+                  <span>題目標題</span>
+                  <input id="questionTitle" name="title" type="text" maxlength="72" required placeholder="例如：二次函數頂點怎麼判斷？">
+                </label>
+                <label>
+                  <span>題目內容</span>
+                  <textarea id="questionBody" name="body" rows="5" required placeholder="輸入題目、已嘗試的步驟與卡住的地方"></textarea>
+                </label>
+                <div class="form-row">
+                  <label>
+                    <span>科目</span>
+                    <select id="questionSubject" name="subject">
+                      <option>數學</option>
+                      <option>英文</option>
+                      <option>自然</option>
+                      <option>社會</option>
+                      <option>國文</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>年級</span>
+                    <select id="questionGrade" name="grade">
+                      <option>國中</option>
+                      <option>高中</option>
+                      <option>自學</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>難度</span>
+                    <select id="questionDifficulty" name="difficulty">
+                      <option value="junior">國中題</option>
+                      <option value="senior">高中題</option>
+                      <option value="college">延伸題</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="primary-action" type="submit">
+                  <i data-lucide="send"></i>
+                  <span>發布題目</span>
+                </button>
+              </form>
+            </section>
+
+            <section class="panel question-panel">
+              <div class="panel-heading">
+                <h2>待解題目</h2>
+                <span id="questionCount" class="tag">0 題</span>
+              </div>
+              <div class="question-list" id="questionList"></div>
+            </section>
+
+            <section class="panel answer-panel">
+              <div id="selectedQuestion"></div>
+              <form class="stack-form" id="answerForm">
+                <label>
+                  <span>詳解內容</span>
+                  <textarea id="answerBody" rows="7" required placeholder="寫下推導、原因、公式或例子"></textarea>
+                </label>
+                <button class="primary-action" type="submit">
+                  <i data-lucide="brain"></i>
+                  <span>送出詳解並評分</span>
+                </button>
+              </form>
+              <div class="answer-list" id="answerList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="notes">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Knowledge Notes</p>
+              <h1>學習筆記</h1>
+            </div>
+            <span class="tag">分享 +6 EDU</span>
+          </div>
+
+          <div class="notes-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>新增筆記</h2>
+              </div>
+              <form class="stack-form" id="noteForm">
+                <label>
+                  <span>筆記標題</span>
+                  <input id="noteTitle" type="text" maxlength="72" required placeholder="例如：英文關係代名詞整理">
+                </label>
+                <label>
+                  <span>科目</span>
+                  <select id="noteSubject">
+                    <option>英文</option>
+                    <option>數學</option>
+                    <option>自然</option>
+                    <option>社會</option>
+                    <option>國文</option>
+                  </select>
+                </label>
+                <label>
+                  <span>內容</span>
+                  <textarea id="noteBody" rows="8" required placeholder="整理重點、常見錯誤與範例"></textarea>
+                </label>
+                <button class="primary-action" type="submit">
+                  <i data-lucide="file-plus-2"></i>
+                  <span>發布筆記</span>
+                </button>
+              </form>
+            </section>
+            <section class="notes-list" id="notesList"></section>
+          </div>
+        </section>
+
+        <section class="view" id="market">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Reward Shop</p>
+              <h1>EDU 兌換商城</h1>
+            </div>
+            <div class="balance-box">
+              <span>可用點數</span>
+              <strong id="marketBalance">0 EDU</strong>
+            </div>
+          </div>
+          <div class="market-grid" id="marketGrid"></div>
+          <section class="panel history-panel">
+            <div class="panel-heading">
+              <h2>兌換紀錄</h2>
+            </div>
+            <div class="compact-list" id="redemptionHistory"></div>
+          </section>
+        </section>
+
+        <section class="view" id="trust">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Trust Layer</p>
+              <h1>信譽與身份</h1>
+            </div>
+            <span class="tag" id="trustLevel">L1 一般</span>
+          </div>
+
+          <div class="trust-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>信譽分數</h2>
+                <i data-lucide="badge-check"></i>
+              </div>
+              <div class="reputation-meter">
+                <div id="reputationBar"></div>
+              </div>
+              <p class="metric-line"><strong id="reputationScore">0</strong><span>/ 100</span></p>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>DID 分層</h2>
+              </div>
+              <div class="level-list" id="levelList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>近期貢獻</h2>
+              </div>
+              <div class="compact-list" id="activityList"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
