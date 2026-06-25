@@ -6,19 +6,26 @@
 - 學習筆記：分享讀書筆記並累積 EDU 點數。
 - EDU 兌換商城：以瀏覽器資料模擬文具、課程、公益捐贈與學習歷程報告兌換。
 - 信譽與 DID 分層：以 MVP 方式呈現 L0-L3 身份和信譽進度。
-- AI 家教診斷：`/api/grade-and-reward` 在設定 `ANTHROPIC_API_KEY` 後，改用 Claude 做蘇格拉底式診斷——指出「錯在哪一步」、命名迷思概念、給提示與一題同概念練習題，**不直接給答案**。未設金鑰時自動退回免費規則式評分，所以無金鑰也能展示。
+- AI 家教診斷：`/api/grade-and-reward` 會做蘇格拉底式診斷——指出「錯在哪一步」、命名迷思概念、給提示與一題同概念練習題，**不直接給答案**。
 
-## 啟用 AI 診斷（Claude）
+## AI 診斷的三段式 fallback
 
-1. 取得 Anthropic API Key（platform.claude.com）。
-2. 設為 Cloudflare 機密（不要寫進程式碼）：
+endpoint 會依序挑可用的後端，所以任何環境都能跑：
 
-   ```bash
-   npx wrangler pages secret put ANTHROPIC_API_KEY
-   ```
+1. **Claude**（若設定 `ANTHROPIC_API_KEY`）— 品質最佳，付費。
+2. **Cloudflare Workers AI**（若有 `AI` binding）— **免費額度**，預設 Qwen3 中文模型，無需金鑰。
+3. **規則式評分** — 零依賴 fallback，前兩者都沒有時使用。
 
-   本機測試可改用 `.dev.vars` 檔（內含 `ANTHROPIC_API_KEY=sk-ant-...`，已被 .gitignore 忽略）。
-3. （選用）設 `GRADER_MODEL` 切換模型：預設 `claude-opus-4-8`（最準）；正式上線要壓成本/延遲可設 `claude-haiku-4-5` 或 `claude-sonnet-4-6`。每次診斷都是一次 API 呼叫，請用免費層的每日題數上限控管成本。
+### 啟用免費的 Workers AI（推薦，免金鑰）
+
+`wrangler.toml` 已加好 `[ai]` binding。用 Git 連結部署時：
+
+- 多數情況部署後 binding 會自動生效；若 `/api/grade-and-reward` 的 `mode` 還是 `rule-based-free`，到 Cloudflare 後台該 Pages 專案 → **Settings → Bindings → Add → Workers AI**，變數名稱填 `AI`，再 **Retry deployment**。
+- （選用）設環境變數 `WORKERS_AI_MODEL` 切模型；要更省 Neurons 可用 `@cf/meta/llama-3.1-8b-instruct`。免費額度為每天 10,000 Neurons。
+
+### 啟用 Claude（選用升級）
+
+設 `ANTHROPIC_API_KEY`（Cloudflare Secret，或本機 `.dev.vars`，已被 .gitignore 忽略），即自動優先用 Claude。可用 `GRADER_MODEL` 切 `claude-haiku-4-5` / `claude-sonnet-4-6` 壓成本。
 
 ## 本機預覽
 

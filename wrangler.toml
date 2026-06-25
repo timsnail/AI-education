@@ -1,3 +1,7 @@
 name = "edu-chain-learning-platform"
 compatibility_date = "2026-05-01"
 pages_build_output_dir = "public"
+
+# Cloudflare Workers AI 綁定（免費額度），讓 /api/grade-and-reward 可用 env.AI
+[ai]
+binding = "AI"

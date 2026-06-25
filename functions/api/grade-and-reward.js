@@ -5,9 +5,10 @@ const JSON_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type"
 };
 
-// 預設用最強的 Claude Opus 4.8。正式上線若要壓低成本/延遲，
-// 在 Cloudflare 設環境變數 GRADER_MODEL=claude-haiku-4-5 或 claude-sonnet-4-6 即可切換。
-const DEFAULT_MODEL = "claude-opus-4-8";
+// 優先用 Claude（若有金鑰，品質最佳）；否則用 Cloudflare Workers AI 免費模型；都沒有才退回規則式。
+const DEFAULT_CLAUDE_MODEL = "claude-opus-4-8";
+// Workers AI 預設用 Qwen3（中文最佳）。要更省 Neurons 可在 Cloudflare 設 WORKERS_AI_MODEL=@cf/meta/llama-3.1-8b-instruct
+const DEFAULT_WORKERS_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
 
 const DIAGNOSIS_SCHEMA = {
   type: "object",
@@ -36,25 +37,27 @@ const DIAGNOSIS_SCHEMA = {
 
 const SYSTEM_PROMPT = `你是台灣國高中的學科家教，專長是「診斷學生哪裡不會」，對齊台灣 108 課綱與會考/學測題型。
 
-你會收到一道題目和一份學生的作答。請依下列原則回覆：
+你會收到一道題目和一份學生的作答。請依下列原則判斷：
 
 1. 絕對不要直接寫出最終答案或完整正解。你的任務是讓學生「學會」，不是替他寫答案。
 2. 找出學生作答中第一個關鍵錯誤發生在哪一步（error_step）。若作答正確，error_step 填「無」。
 3. 為這個錯誤命名背後的迷思概念（misconception），例如「負號分配錯誤」「通分時忘記同乘分母」。若無則填「無」。
 4. diagnosis：用一兩句話具體說明錯在哪、為什麼錯，但不給出正確答案。
 5. hint：給一個蘇格拉底式的引導問題或提示，逼學生自己想出下一步，仍然不給答案。
-6. followup_question：出一題「同一個概念、難度相近」的全新練習題，讓學生立刻練習剛剛卡住的地方。
+6. followup_question：出一題「同一個概念、難度相近」的全新練習題。
 7. score：0–100，反映這份作答的正確程度與完整度。is_correct 在 score >= 70 時為 true。
 8. reason：一句話評語（給介面顯示用）。
 
-語氣鼓勵、精準、簡潔，用繁體中文（台灣用語）。`;
+語氣鼓勵、精準、簡潔，全部用繁體中文（台灣用語）。
+
+最後，只輸出「一個 JSON 物件」，不要任何其他文字、不要 markdown 程式碼框、不要 <think> 標籤，格式如下：
+{"is_correct": false, "score": 0, "error_step": "", "misconception": "", "diagnosis": "", "hint": "", "followup_question": "", "reason": ""}`;
 
 export async function onRequestGet(context) {
-  const hasKey = Boolean(context?.env?.ANTHROPIC_API_KEY);
   return json({
     success: true,
     message: "grade-and-reward API is ready.",
-    mode: hasKey ? "claude-diagnosis" : "rule-based-free"
+    mode: detectMode(context?.env)
   });
 }
 
@@ -64,6 +67,7 @@ export async function onRequestOptions() {
 
 export async function onRequestPost(context) {
   try {
+    const env = context?.env || {};
     const body = await context.request.json();
     const question = cleanText(body.question);
     const answer = cleanText(body.answer);
@@ -71,66 +75,65 @@ export async function onRequestPost(context) {
     const subject = cleanText(body.subject || "通用");
 
     if (!question || !answer) {
-      return json(
-        {
-          success: false,
-          error: "question and answer are required."
-        },
-        400
-      );
+      return json({ success: false, error: "question and answer are required." }, 400);
     }
 
-    const apiKey = context?.env?.ANTHROPIC_API_KEY;
+    const payload = { question, answer, difficulty, subject };
 
-    if (apiKey) {
+    // 1) Claude（有金鑰才用，品質最佳）
+    if (env.ANTHROPIC_API_KEY) {
       try {
         const result = await gradeWithClaude({
-          apiKey,
-          model: context.env.GRADER_MODEL || DEFAULT_MODEL,
-          question,
-          answer,
-          difficulty,
-          subject
+          apiKey: env.ANTHROPIC_API_KEY,
+          model: env.GRADER_MODEL || DEFAULT_CLAUDE_MODEL,
+          ...payload
         });
         return json({ success: true, ...result, txHash: null });
       } catch (error) {
-        // Claude 失敗時退回規則式評分，學生端永不卡死。
-        const fallback = gradeAnswer({ question, answer, difficulty, subject });
-        return json({
-          success: true,
-          ...fallback,
-          txHash: null,
-          mode: "rule-based-fallback",
-          fallbackReason: error.message || "claude request failed"
-        });
+        return fallbackResponse(payload, error, "claude failed");
       }
     }
 
-    // 沒有設定金鑰：維持白皮書第一階段「零付費依賴」的規則式評分。
-    const result = gradeAnswer({ question, answer, difficulty, subject });
-    return json({
-      success: true,
-      ...result,
-      txHash: null,
-      mode: "rule-based-free"
-    });
+    // 2) Cloudflare Workers AI（免費額度）
+    if (env.AI && typeof env.AI.run === "function") {
+      try {
+        const result = await gradeWithWorkersAI({
+          ai: env.AI,
+          model: env.WORKERS_AI_MODEL || DEFAULT_WORKERS_MODEL,
+          ...payload
+        });
+        return json({ success: true, ...result, txHash: null });
+      } catch (error) {
+        return fallbackResponse(payload, error, "workers-ai failed");
+      }
+    }
+
+    // 3) 規則式（零依賴 fallback）
+    const result = gradeAnswer(payload);
+    return json({ success: true, ...result, txHash: null });
   } catch (error) {
-    return json(
-      {
-        success: false,
-        error: error.message || "Unexpected API error."
-      },
-      500
-    );
+    return json({ success: false, error: error.message || "Unexpected API error." }, 500);
   }
 }
 
-async function gradeWithClaude({ apiKey, model, question, answer, difficulty, subject }) {
-  const userText =
-    `科目：${subject}\n難度：${difficultyLabel(difficulty)}\n\n` +
-    `題目：\n${question}\n\n學生的作答：\n${answer}\n\n` +
-    `請依系統指示診斷這份作答，並以指定的 JSON 結構回覆。`;
+function detectMode(env) {
+  if (env?.ANTHROPIC_API_KEY) return "claude-diagnosis";
+  if (env?.AI && typeof env.AI.run === "function") return "workers-ai-diagnosis";
+  return "rule-based-free";
+}
 
+function fallbackResponse(payload, error, label) {
+  const result = gradeAnswer(payload);
+  return json({
+    success: true,
+    ...result,
+    txHash: null,
+    mode: "rule-based-fallback",
+    fallbackReason: `${label}: ${error.message || "unknown"}`.slice(0, 200)
+  });
+}
+
+async function gradeWithClaude({ apiKey, model, question, answer, difficulty, subject }) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -147,7 +150,7 @@ async function gradeWithClaude({ apiKey, model, question, answer, difficulty, su
         format: { type: "json_schema", schema: DIAGNOSIS_SCHEMA }
       },
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userText }]
+      messages: [{ role: "user", content: buildUserText({ subject, difficulty, question, answer }) }]
     })
   });
 
@@ -157,16 +160,61 @@ async function gradeWithClaude({ apiKey, model, question, answer, difficulty, su
   }
 
   const data = await response.json();
-  if (data.stop_reason === "refusal") {
-    throw new Error("model refused the request");
-  }
+  if (data.stop_reason === "refusal") throw new Error("model refused the request");
 
   const textBlock = (data.content || []).find((block) => block.type === "text");
-  if (!textBlock || !textBlock.text) {
-    throw new Error("empty model response");
-  }
+  if (!textBlock || !textBlock.text) throw new Error("empty model response");
 
-  const parsed = JSON.parse(textBlock.text);
+  return toResult(parseDiagnosis(textBlock.text), difficulty, "claude-diagnosis");
+}
+
+async function gradeWithWorkersAI({ ai, model, question, answer, difficulty, subject }) {
+  const output = await ai.run(model, {
+    max_tokens: 1024,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildUserText({ subject, difficulty, question, answer }) }
+    ]
+  });
+
+  const raw = extractText(output);
+  if (!raw) throw new Error("empty workers-ai response");
+
+  return toResult(parseDiagnosis(raw), difficulty, "workers-ai-diagnosis");
+}
+
+function buildUserText({ subject, difficulty, question, answer }) {
+  return (
+    `科目：${subject}\n難度：${difficultyLabel(difficulty)}\n\n` +
+    `題目：\n${question}\n\n學生的作答：\n${answer}\n\n` +
+    `請依系統指示診斷這份作答，只回覆指定的 JSON 物件。`
+  );
+}
+
+function extractText(output) {
+  if (!output) return "";
+  if (typeof output === "string") return output;
+  if (typeof output.response === "string") return output.response;
+  const choice = output.choices && output.choices[0];
+  if (choice && choice.message && typeof choice.message.content === "string") {
+    return choice.message.content;
+  }
+  return "";
+}
+
+function parseDiagnosis(raw) {
+  let text = String(raw || "");
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  text = text.replace(/```json/gi, "").replace(/```/g, "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("no JSON object found in model output");
+  }
+  return JSON.parse(text.slice(start, end + 1));
+}
+
+function toResult(parsed, difficulty, mode) {
   const score = clamp(Number(parsed.score) || 0, 0, 100);
   const isCorrect = typeof parsed.is_correct === "boolean" ? parsed.is_correct : score >= 70;
   const rewardTokens = isCorrect ? calculateReward(score, difficulty) : 0;
@@ -174,7 +222,7 @@ async function gradeWithClaude({ apiKey, model, question, answer, difficulty, su
   return {
     is_correct: isCorrect,
     score,
-    confidence: isCorrect ? 0.9 : 0.78,
+    confidence: isCorrect ? 0.88 : 0.76,
     rewarded: isCorrect,
     rewardTokens,
     reason: String(parsed.reason || `評分 ${score} 分。`).slice(0, 200),
@@ -185,7 +233,7 @@ async function gradeWithClaude({ apiKey, model, question, answer, difficulty, su
       hint: cleanField(parsed.hint),
       followup: cleanField(parsed.followup_question)
     },
-    mode: "claude-diagnosis"
+    mode
   };
 }
 
@@ -253,12 +301,7 @@ function buildReason({ isCorrect, score, answerLength, structureScore, evidenceS
 function calculateReward(score, difficulty) {
   const base = 10;
   const quality = clamp(score / 80, 0.5, 1.5);
-  const difficultyMultiplier = {
-    junior: 1,
-    senior: 1.5,
-    college: 2
-  }[difficulty] || 1;
-
+  const difficultyMultiplier = { junior: 1, senior: 1.5, college: 2 }[difficulty] || 1;
   return Number((base * quality * difficultyMultiplier).toFixed(1));
 }
 
@@ -281,8 +324,5 @@ function clamp(value, min, max) {
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: JSON_HEADERS
-  });
+  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
