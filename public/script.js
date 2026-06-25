@@ -146,11 +146,15 @@ function bindEvents() {
   $("#questionForm").addEventListener("submit", createQuestion);
   $("#answerForm").addEventListener("submit", submitAnswer);
   $("#noteForm").addEventListener("submit", createNote);
+  $("#tutorForm").addEventListener("submit", startTutor);
+  $("#tutorInputForm").addEventListener("submit", sendTutorReply);
+  $("#tutorResetBtn").addEventListener("click", resetTutor);
 
   document.body.addEventListener("click", (event) => {
     const questionButton = event.target.closest("[data-select-question]");
     const redeemButton = event.target.closest("[data-redeem]");
     const adoptButton = event.target.closest("[data-adopt]");
+    const tutorChoice = event.target.closest("[data-tutor-choice]");
 
     if (questionButton) {
       selectedQuestionId = questionButton.dataset.selectQuestion;
@@ -164,6 +168,10 @@ function bindEvents() {
 
     if (adoptButton) {
       adoptAnswer(adoptButton.dataset.adopt);
+    }
+
+    if (tutorChoice) {
+      sendTutorMessage(tutorChoice.dataset.tutorChoice);
     }
   });
 }
@@ -683,6 +691,149 @@ function calculateReward(score, difficulty) {
   const quality = Math.max(0.5, Math.min(1.5, score / 80));
   const difficultyMultiplier = { junior: 1, senior: 1.5, college: 2 }[difficulty] || 1;
   return Number((base * quality * difficultyMultiplier).toFixed(1));
+}
+
+// ===== AI 家教（互動逐步引導）=====
+let tutor = { subject: "", difficulty: "", history: [], active: false, busy: false };
+
+function startTutor(event) {
+  event.preventDefault();
+  const problem = $("#tutorProblem").value.trim();
+  if (!problem) return;
+
+  tutor = {
+    subject: $("#tutorSubject").value,
+    difficulty: $("#tutorDifficulty").value,
+    history: [],
+    active: true,
+    busy: false
+  };
+
+  const opening =
+    `科目：${tutor.subject}\n難度：${difficultyLabel(tutor.difficulty)}\n\n題目：\n${problem}\n\n` +
+    `請開始引導我：先點出核心概念，並給我解題方向的選項讓我選。只回覆 JSON。`;
+  tutor.history.push({ role: "user", content: opening });
+
+  $("#tutorThread").innerHTML = "";
+  appendTutorBubble("me", `<strong>我的題目</strong><p>${escapeHtml(problem)}</p>`);
+  tutorTurn();
+}
+
+function sendTutorReply(event) {
+  event.preventDefault();
+  const text = $("#tutorReply").value.trim();
+  if (!text) return;
+  $("#tutorReply").value = "";
+  sendTutorMessage(text);
+}
+
+function sendTutorMessage(text) {
+  if (!tutor.active || tutor.busy || !text) return;
+  appendTutorBubble("me", `<p>${escapeHtml(text)}</p>`);
+  tutor.history.push({ role: "user", content: text });
+  tutorTurn();
+}
+
+async function tutorTurn() {
+  tutor.busy = true;
+  setTutorInput(false);
+  const thinking = appendTutorBubble("ai thinking", `<p>思考中…</p>`);
+
+  try {
+    const response = await fetch("/api/tutor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: tutor.subject,
+        difficulty: tutor.difficulty,
+        history: tutor.history
+      })
+    });
+    const data = await response.json();
+    thinking.remove();
+    if (!data.success || !data.turn) throw new Error(data.error || "tutor failed");
+
+    tutor.history.push({ role: "assistant", content: data.turn.message });
+    renderTutorTurn(data.turn);
+  } catch (error) {
+    console.error(error);
+    thinking.remove();
+    appendTutorBubble("ai", `<p>抱歉，剛剛沒接上，請再送一次或換句話說。</p>`);
+    setTutorInput(true);
+  } finally {
+    tutor.busy = false;
+  }
+}
+
+function renderTutorTurn(turn) {
+  const parts = [];
+  if (turn.concept) parts.push(`<span class="tutor-concept">概念：${escapeHtml(turn.concept)}</span>`);
+  if (turn.message) parts.push(`<p>${escapeHtml(turn.message)}</p>`);
+  if (turn.choices && turn.choices.length) {
+    parts.push(
+      `<div class="tutor-choices">${turn.choices
+        .map((c) => `<button class="tutor-choice" type="button" data-tutor-choice="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
+        .join("")}</div>`
+    );
+  }
+  appendTutorBubble("ai", parts.join(""));
+
+  if (turn.isComplete) {
+    renderTutorSummary(turn);
+    tutor.active = false;
+    setTutorInput(false);
+  } else {
+    setTutorInput(true);
+    $("#tutorReply").focus();
+  }
+}
+
+function renderTutorSummary(turn) {
+  const chips = (list) => list.map((x) => `<span class="tutor-chip">${escapeHtml(x)}</span>`).join("");
+  const blocks = [`<div class="tutor-summary-head"><i data-lucide="flag"></i><span>綜合講解</span></div>`];
+  if (turn.summary) blocks.push(`<p>${escapeHtml(turn.summary)}</p>`);
+  if (turn.conceptsPracticed && turn.conceptsPracticed.length) {
+    blocks.push(`<div class="tutor-meta"><strong>這題練到</strong>${chips(turn.conceptsPracticed)}</div>`);
+  }
+  if (turn.weakPoints && turn.weakPoints.length) {
+    blocks.push(`<div class="tutor-meta"><strong>要加強</strong>${chips(turn.weakPoints)}</div>`);
+  }
+  blocks.push(`<p class="tutor-hint">想再練一題？按右上角「換一題」。</p>`);
+
+  const card = document.createElement("article");
+  card.className = "tutor-summary";
+  card.innerHTML = blocks.join("");
+  $("#tutorThread").appendChild(card);
+  scrollTutor();
+  refreshIcons();
+}
+
+function appendTutorBubble(variant, html) {
+  const bubble = document.createElement("div");
+  bubble.className = `tutor-bubble ${variant}`;
+  bubble.innerHTML = html;
+  $("#tutorThread").appendChild(bubble);
+  scrollTutor();
+  return bubble;
+}
+
+function setTutorInput(show) {
+  const form = $("#tutorInputForm");
+  form.hidden = !show;
+  $("#tutorReply").disabled = !show;
+}
+
+function resetTutor() {
+  tutor = { subject: "", difficulty: "", history: [], active: false, busy: false };
+  $("#tutorThread").innerHTML = `<div class="empty-state">先在左邊上傳題目，AI 會先問你想用什麼概念，再一步一步帶你解，最後給綜合講解。</div>`;
+  setTutorInput(false);
+  $("#tutorProblem").value = "";
+  refreshIcons();
+}
+
+function scrollTutor() {
+  const thread = $("#tutorThread");
+  thread.scrollTop = thread.scrollHeight;
 }
 
 function compactItem(title, meta) {

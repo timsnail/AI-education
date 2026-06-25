@@ -39,6 +39,10 @@
             <i data-lucide="layout-dashboard"></i>
             <span>總覽</span>
           </button>
+          <button class="nav-button" type="button" data-view="tutor">
+            <i data-lucide="graduation-cap"></i>
+            <span>AI 家教</span>
+          </button>
           <button class="nav-button" type="button" data-view="questions">
             <i data-lucide="messages-square"></i>
             <span>問答</span>
@@ -96,6 +100,71 @@
                 <button class="ghost-button" type="button" data-view="questions">前往問答</button>
               </div>
               <div class="compact-list" id="hotQuestions"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="tutor">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">AI Tutor</p>
+              <h1>AI 家教：一步一步帶你解</h1>
+            </div>
+            <button class="ghost-button" id="tutorResetBtn" type="button">
+              <i data-lucide="rotate-ccw"></i>
+              <span>換一題</span>
+            </button>
+          </div>
+
+          <div class="tutor-layout">
+            <section class="panel" id="tutorSetup">
+              <div class="panel-heading">
+                <h2>上傳題目</h2>
+                <span class="tag">先選概念，再一步步解</span>
+              </div>
+              <form class="stack-form" id="tutorForm">
+                <label>
+                  <span>題目</span>
+                  <textarea id="tutorProblem" rows="5" required placeholder="把題目打上來，連你卡住或試過的地方一起寫更好。"></textarea>
+                </label>
+                <div class="form-row">
+                  <label>
+                    <span>科目</span>
+                    <select id="tutorSubject">
+                      <option>數學</option>
+                      <option>自然</option>
+                      <option>英文</option>
+                      <option>社會</option>
+                      <option>國文</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>難度</span>
+                    <select id="tutorDifficulty">
+                      <option value="junior">國中題</option>
+                      <option value="senior">高中題</option>
+                      <option value="college">延伸題</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="primary-action" type="submit">
+                  <i data-lucide="sparkles"></i>
+                  <span>開始引導</span>
+                </button>
+              </form>
+            </section>
+
+            <section class="panel tutor-chat-panel">
+              <div class="tutor-thread" id="tutorThread">
+                <div class="empty-state">先在左邊上傳題目，AI 會先問你想用什麼概念，再一步一步帶你解，最後給綜合講解。</div>
+              </div>
+              <form class="tutor-input" id="tutorInputForm" hidden>
+                <input id="tutorReply" type="text" autocomplete="off" placeholder="輸入你的答案或想法…">
+                <button class="primary-action" type="submit">
+                  <i data-lucide="send"></i>
+                  <span>送出</span>
+                </button>
+              </form>
             </section>
           </div>
         </section>
