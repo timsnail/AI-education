@@ -6,7 +6,19 @@
 - 學習筆記：分享讀書筆記並累積 EDU 點數。
 - EDU 兌換商城：以瀏覽器資料模擬文具、課程、公益捐贈與學習歷程報告兌換。
 - 信譽與 DID 分層：以 MVP 方式呈現 L0-L3 身份和信譽進度。
-- Cloudflare Pages Function：`/api/grade-and-reward` 使用免費規則式評分，不需要 OpenAI API Key。
+- AI 家教診斷：`/api/grade-and-reward` 在設定 `ANTHROPIC_API_KEY` 後，改用 Claude 做蘇格拉底式診斷——指出「錯在哪一步」、命名迷思概念、給提示與一題同概念練習題，**不直接給答案**。未設金鑰時自動退回免費規則式評分，所以無金鑰也能展示。
+
+## 啟用 AI 診斷（Claude）
+
+1. 取得 Anthropic API Key（platform.claude.com）。
+2. 設為 Cloudflare 機密（不要寫進程式碼）：
+
+   ```bash
+   npx wrangler pages secret put ANTHROPIC_API_KEY
+   ```
+
+   本機測試可改用 `.dev.vars` 檔（內含 `ANTHROPIC_API_KEY=sk-ant-...`，已被 .gitignore 忽略）。
+3. （選用）設 `GRADER_MODEL` 切換模型：預設 `claude-opus-4-8`（最準）；正式上線要壓成本/延遲可設 `claude-haiku-4-5` 或 `claude-sonnet-4-6`。每次診斷都是一次 API 呼叫，請用免費層的每日題數上限控管成本。
 
 ## 本機預覽
 

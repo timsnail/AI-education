@@ -334,6 +334,7 @@ function renderAnswerCard(questionId, answer) {
       </div>
       <p>${escapeHtml(answer.body)}</p>
       <small>${escapeHtml(answer.reason)}</small>
+      ${renderDiagnosis(answer.diagnosis)}
       ${answer.accepted ? "" : `
         <button class="ghost-button" type="button" data-adopt="${questionId}:${answer.id}">
           <i data-lucide="circle-check"></i>
@@ -341,6 +342,41 @@ function renderAnswerCard(questionId, answer) {
         </button>
       `}
     </article>
+  `;
+}
+
+function renderDiagnosis(diagnosis) {
+  if (!diagnosis) return "";
+  const rows = [
+    ["target", "錯在哪一步", diagnosis.errorStep],
+    ["lightbulb", "迷思概念", diagnosis.misconception],
+    ["search", "診斷", diagnosis.detail],
+    ["sparkles", "提示", diagnosis.hint],
+    ["dumbbell", "練習一題", diagnosis.followup]
+  ].filter(([, , value]) => value && value.trim());
+
+  if (!rows.length) return "";
+
+  return `
+    <div class="diagnosis-card">
+      <div class="diagnosis-head">
+        <i data-lucide="brain-circuit"></i>
+        <span>AI 家教診斷</span>
+      </div>
+      ${rows
+        .map(
+          ([icon, label, value]) => `
+        <div class="diagnosis-row">
+          <i data-lucide="${icon}"></i>
+          <div>
+            <strong>${label}</strong>
+            <p>${escapeHtml(value)}</p>
+          </div>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
   `;
 }
 
@@ -455,7 +491,9 @@ async function submitAnswer(event) {
       score: result.score,
       reward,
       accepted: false,
-      reason: result.reason || "已完成評分。"
+      reason: result.reason || "已完成評分。",
+      diagnosis: result.diagnosis || null,
+      mode: result.mode || ""
     };
 
     question.answers.unshift(answer);
