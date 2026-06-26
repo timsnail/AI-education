@@ -25,11 +25,12 @@ const WAI_TRANSCRIBE_PROMPT =
 
 // 第二階段：文字模型從上面的描述中抽出「題目本身」，丟掉雜訊與任何被亂加的答案。
 const EXTRACT_SYSTEM =
-  "以下是一張「題目照片」的辨識內容，可能夾雜雜訊或被多餘加上的答案。請整理成學生看得懂的『題目本身』：\n" +
-  "- 用繁體中文、自然語句重述題目，就像課本或考卷上的題目那樣。\n" +
-  "- 每一個數學式都要『單獨』用一對單個 $ 包起來（行內），例如分數寫成 $\\frac{1}{7}$、矩陣寫成 $A=\\begin{bmatrix}1 & 2 \\\\ 3 & 4\\end{bmatrix}$。\n" +
-  "- 絕對不要用 \\begin{align}、\\begin{align*} 或 $$ 把整段數學包起來；不要用 markdown 標題或 ** 粗體；不要保留「Text and Math Expressions / Figure / Table」這類標記。\n" +
-  "- 只輸出題目本身，絕對不要解題、不要給答案、不要任何說明或開場白。";
+  "以下是一張題目照片的辨識內容。請『忠實』整理出題目本身，不要改變題意：\n" +
+  "- 用繁體中文（台灣用字）重述題目，保留原本的數學式與數值，不要新增、不要刪減題目資訊。\n" +
+  "- 絕對不要解題、不要計算、不要自己補出任何答案或中間步驟（例如不要自己算出某個矩陣等於什麼）。\n" +
+  "- 數學式用 LaTeX 保留：分數用 $\\frac{1}{7}$、矩陣用 $\\begin{bmatrix}1 & 2 \\\\ 3 & 4\\end{bmatrix}$，每個式子用單個 $ 行內包起來。\n" +
+  "- 不要用 markdown 標題或 ** 粗體，不要保留「Text and Math Expressions / Figure / Table」這類辨識標記。\n" +
+  "- 只輸出題目本身。";
 
 export async function onRequestGet(context) {
   return json({ success: true, message: "vision API is ready.", mode: detectMode(context?.env) });

@@ -829,7 +829,13 @@ function appendTutorBubble(variant, html) {
 }
 
 function mathText(value) {
-  return escapeHtml(String(value == null ? "" : value).replace(/\*\*/g, ""));
+  let s = String(value == null ? "" : value).replace(/\*\*/g, "");
+  // 模型常把整段數學包成裸的 \begin{align*}（沒有 $ 包覆，KaTeX 不會渲染）。
+  // 轉成 KaTeX 支援的 aligned 並包進 $$，讓任何輸出都能渲染。用函式替換避免 $ 在 replace 中的特殊行為。
+  s = s
+    .replace(/\\begin\{align\*?\}/g, () => "$$\\begin{aligned}")
+    .replace(/\\end\{align\*?\}/g, () => "\\end{aligned}$$");
+  return escapeHtml(s);
 }
 
 function typesetMath(element) {
