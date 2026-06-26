@@ -16,10 +16,12 @@ const CLAUDE_OCR_PROMPT =
   "你是 OCR 工具。把圖片上的題目逐字抄出來，數學式用一般文字（例如 x^2、(x-3)^2）。" +
   "若有圖形或表格，用一句話描述。絕對不要解題、不要計算、不要給答案、不要任何說明。只輸出題目本身。";
 
-// Llama Vision 不擅長「只抄」，但擅長「描述」——讓它把看到的東西全列出來（英文指令遵循較好）。
-const WAI_DESCRIBE_PROMPT =
-  "List every piece of text and every math expression visible in this image, exactly as written. " +
-  "If there is a figure, chart or table, describe it in one short sentence. Do not solve anything, do not add answers.";
+// 強制「逐字轉錄」，並明確禁止「描述圖片大意」與「解題」（英文指令遵循較好）。
+const WAI_TRANSCRIBE_PROMPT =
+  "Transcribe everything written in this image, word for word, exactly as it appears — including all Chinese text, every number, variable, fraction, equation and matrix. " +
+  "Write all mathematics in LaTeX (use \\begin{bmatrix} ... \\end{bmatrix} for matrices and \\frac for fractions). " +
+  "Output ONLY the exact transcription of what is written. " +
+  "Do NOT describe or summarize the image. Do NOT write sentences like 'the image shows' or 'there are no figures'. Do NOT solve or answer anything.";
 
 // 第二階段：文字模型從上面的描述中抽出「題目本身」，丟掉雜訊與任何被亂加的答案。
 const EXTRACT_SYSTEM =
@@ -144,7 +146,7 @@ async function readWithWorkersAI(env, mediaType, base64) {
 async function runVisionOnce(ai, model, bytes, dataUrl) {
   // 多數 Workers AI 視覺模型用 image 位元組陣列；少數吃 messages + image_url。
   try {
-    return await ai.run(model, { image: bytes, prompt: WAI_DESCRIBE_PROMPT, max_tokens: 1024 });
+    return await ai.run(model, { image: bytes, prompt: WAI_TRANSCRIBE_PROMPT, max_tokens: 1024 });
   } catch (error) {
     if (needsLicenseAgreement(error)) throw error; // 授權問題交給上層處理
     return await ai.run(model, {
@@ -153,7 +155,7 @@ async function runVisionOnce(ai, model, bytes, dataUrl) {
         {
           role: "user",
           content: [
-            { type: "text", text: WAI_DESCRIBE_PROMPT },
+            { type: "text", text: WAI_TRANSCRIBE_PROMPT },
             { type: "image_url", image_url: { url: dataUrl } }
           ]
         }
