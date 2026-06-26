@@ -149,6 +149,14 @@ function bindEvents() {
   $("#tutorForm").addEventListener("submit", startTutor);
   $("#tutorInputForm").addEventListener("submit", sendTutorReply);
   $("#tutorResetBtn").addEventListener("click", resetTutor);
+  $("#tutorPhotoBtn").addEventListener("click", () => $("#tutorPhoto").click());
+  $("#tutorPhoto").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file) handlePhotoFile(file);
+    event.target.value = "";
+  });
+  $("#tutorPreviewClear").addEventListener("click", clearTutorPhoto);
+  $("#tutorProblem").addEventListener("paste", handleProblemPaste);
 
   document.body.addEventListener("click", (event) => {
     const questionButton = event.target.closest("[data-select-question]");
@@ -828,12 +836,100 @@ function resetTutor() {
   $("#tutorThread").innerHTML = `<div class="empty-state">先在左邊上傳題目，AI 會先問你想用什麼概念，再一步一步帶你解，最後給綜合講解。</div>`;
   setTutorInput(false);
   $("#tutorProblem").value = "";
+  clearTutorPhoto();
   refreshIcons();
 }
 
 function scrollTutor() {
   const thread = $("#tutorThread");
   thread.scrollTop = thread.scrollHeight;
+}
+
+function handleProblemPaste(event) {
+  const items = event.clipboardData && event.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.startsWith("image/")) {
+      event.preventDefault();
+      const file = item.getAsFile();
+      if (file) handlePhotoFile(file);
+      return;
+    }
+  }
+}
+
+async function handlePhotoFile(file) {
+  if (!file.type.startsWith("image/")) {
+    showToast("請選擇圖片檔。");
+    return;
+  }
+  try {
+    const dataUrl = await scaleImage(file, 1280);
+    showTutorPreview(dataUrl);
+    await recognizePhoto(dataUrl);
+  } catch (error) {
+    console.error(error);
+    showToast("照片讀取失敗，請換一張試試。");
+  }
+}
+
+function scaleImage(file, maxDim) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("decode failed"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showTutorPreview(dataUrl) {
+  $("#tutorPreviewImg").src = dataUrl;
+  $("#tutorPreview").hidden = false;
+}
+
+function clearTutorPhoto() {
+  $("#tutorPreview").hidden = true;
+  $("#tutorPreviewImg").src = "";
+}
+
+async function recognizePhoto(dataUrl) {
+  const textarea = $("#tutorProblem");
+  const previous = textarea.value;
+  textarea.value = "";
+  textarea.disabled = true;
+  textarea.placeholder = "辨識中…請稍候";
+  try {
+    const response = await fetch("/api/vision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl, subject: $("#tutorSubject").value })
+    });
+    const data = await response.json();
+    if (!data.success || !data.problem) throw new Error(data.error || "vision failed");
+    textarea.value = data.problem;
+    showToast("已辨識出題目，確認或修改後就能開始引導。");
+  } catch (error) {
+    console.error(error);
+    textarea.value = previous;
+    showToast("辨識失敗，你可以直接手打題目。");
+  } finally {
+    textarea.disabled = false;
+    textarea.placeholder = "把題目打上來，連你卡住或試過的地方一起寫更好。也可以上傳照片自動辨識。";
+  }
 }
 
 function compactItem(title, meta) {

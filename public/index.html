@@ -123,9 +123,23 @@
                 <span class="tag">先選概念，再一步步解</span>
               </div>
               <form class="stack-form" id="tutorForm">
+                <div class="tutor-upload">
+                  <input type="file" id="tutorPhoto" accept="image/*" hidden>
+                  <button class="ghost-button" type="button" id="tutorPhotoBtn">
+                    <i data-lucide="camera"></i>
+                    <span>上傳照片</span>
+                  </button>
+                  <span class="tutor-upload-hint">有圖、懶得打字？拍照或把截圖貼進題目框</span>
+                </div>
+                <figure class="tutor-preview" id="tutorPreview" hidden>
+                  <img id="tutorPreviewImg" alt="上傳的題目照片">
+                  <button class="tutor-preview-clear" id="tutorPreviewClear" type="button" aria-label="移除照片">
+                    <i data-lucide="x"></i>
+                  </button>
+                </figure>
                 <label>
                   <span>題目</span>
-                  <textarea id="tutorProblem" rows="5" required placeholder="把題目打上來，連你卡住或試過的地方一起寫更好。"></textarea>
+                  <textarea id="tutorProblem" rows="5" required placeholder="把題目打上來，連你卡住或試過的地方一起寫更好。也可以上傳照片自動辨識。"></textarea>
                 </label>
                 <div class="form-row">
                   <label>

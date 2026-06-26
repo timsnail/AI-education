@@ -957,6 +957,53 @@ svg {
   font-weight: 600;
 }
 
+.tutor-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tutor-upload-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tutor-preview {
+  position: relative;
+  margin: 0;
+  max-width: 220px;
+}
+
+.tutor-preview img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.tutor-preview-clear {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tutor-preview-clear:hover {
+  background: var(--surface-strong);
+}
+
 @media (max-width: 1120px) {
   .tutor-layout {
     grid-template-columns: 1fr;
