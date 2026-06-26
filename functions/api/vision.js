@@ -10,9 +10,13 @@ const DEFAULT_CLAUDE_MODEL = "claude-opus-4-8";
 const DEFAULT_VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 
 const VISION_PROMPT =
-  "你是把題目照片轉成文字的助手。請把這張圖片裡的「題目」完整、逐字轉成文字。" +
-  "若題目含有圖形、表格、座標圖或數學式，請用文字清楚描述或寫出（數學式用一般文字，例如 x^2、(x-3)^2）。" +
-  "只輸出題目本身，不要解題、不要加任何開場白或說明。用繁體中文。";
+  "你是一個 OCR 文字辨識工具，唯一任務是把圖片上的題目文字原樣抄出來。\n" +
+  "嚴格規則：\n" +
+  "1. 絕對不要解題、不要計算、不要寫出任何答案或解題過程。\n" +
+  "2. 不要加任何開場白、說明或評論。\n" +
+  "3. 數學式用一般文字照抄（例如 x^2、(x-3)^2、-b/(2a)）。\n" +
+  "4. 若圖片有圖形或表格，只用一句話描述它，不要分析。\n" +
+  "只輸出題目本身的文字。";
 
 export async function onRequestGet(context) {
   return json({ success: true, message: "vision API is ready.", mode: detectMode(context?.env) });
