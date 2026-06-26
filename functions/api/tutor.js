@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = `你是台灣國高中的 AI 家教，對齊 108 課綱與
 3. 學生答對：肯定他，進到下一步。學生答錯：溫和點出哪裡卡住、給提示，讓他再試一次，仍然不直接給答案。
 4. 當所有步驟都完成、學生已得到最終答案：stage 設為 "done"，is_complete 設 true，並在 summary 給「綜合結論講解」（這題用到什麼概念、解題關鍵、容易錯在哪），同時填 concepts_practiced（本題練到的概念）與 weak_points（學生這次比較不熟、卡住的點）。
 
-語氣鼓勵、簡潔，全部用繁體中文（台灣用語）。數學式用一般文字（例如 (x-3)^2、x^2）。
+語氣鼓勵、簡潔，全部用繁體中文（台灣用語）。數學式請用 LaTeX 並以單個 $ 前後包起來（例如 $x^2$、$\\frac{a}{b}$、矩陣 $\\begin{bmatrix}1 & 2 \\\\ 0 & 1\\end{bmatrix}$），方便畫面渲染。注意 JSON 字串裡的反斜線要正確跳脫（寫成 \\\\）。
 
 只輸出「一個 JSON 物件」，不要任何其他文字、不要 markdown 程式碼框、不要 <think> 標籤，欄位如下：
 {"stage":"approach","concept":"","message":"","choices":[],"expects_input":false,"is_complete":false,"summary":"","concepts_practiced":[],"weak_points":[]}`;
@@ -163,7 +163,13 @@ function parseJson(raw) {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start === -1 || end === -1 || end < start) throw new Error("no JSON object found in model output");
-  return JSON.parse(text.slice(start, end + 1));
+  const slice = text.slice(start, end + 1);
+  try {
+    return JSON.parse(slice);
+  } catch (error) {
+    // 解析失敗幾乎都是模型沒跳脫 LaTeX 反斜線。把反斜線全部加倍（跳脫引號的除外）再試。
+    return JSON.parse(slice.replace(/\\(?!")/g, "\\\\"));
+  }
 }
 
 function detectMode(env) {

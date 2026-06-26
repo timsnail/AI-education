@@ -157,6 +157,7 @@ function bindEvents() {
   });
   $("#tutorPreviewClear").addEventListener("click", clearTutorPhoto);
   $("#tutorProblem").addEventListener("paste", handleProblemPaste);
+  $("#tutorProblem").addEventListener("input", renderProblemPreview);
 
   document.body.addEventListener("click", (event) => {
     const questionButton = event.target.closest("[data-select-question]");
@@ -723,7 +724,7 @@ function startTutor(event) {
   tutor.history.push({ role: "user", content: opening });
 
   $("#tutorThread").innerHTML = "";
-  appendTutorBubble("me", `<strong>我的題目</strong><p>${escapeHtml(problem)}</p>`);
+  appendTutorBubble("me", `<strong>我的題目</strong><p class="tutor-math">${mathText(problem)}</p>`);
   tutorTurn();
 }
 
@@ -775,12 +776,12 @@ async function tutorTurn() {
 
 function renderTutorTurn(turn) {
   const parts = [];
-  if (turn.concept) parts.push(`<span class="tutor-concept">概念：${escapeHtml(turn.concept)}</span>`);
-  if (turn.message) parts.push(`<p>${escapeHtml(turn.message)}</p>`);
+  if (turn.concept) parts.push(`<span class="tutor-concept">概念：${mathText(turn.concept)}</span>`);
+  if (turn.message) parts.push(`<p class="tutor-math">${mathText(turn.message)}</p>`);
   if (turn.choices && turn.choices.length) {
     parts.push(
       `<div class="tutor-choices">${turn.choices
-        .map((c) => `<button class="tutor-choice" type="button" data-tutor-choice="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
+        .map((c) => `<button class="tutor-choice tutor-math" type="button" data-tutor-choice="${escapeHtml(c.replace(/\*\*/g, ""))}">${mathText(c)}</button>`)
         .join("")}</div>`
     );
   }
@@ -797,9 +798,9 @@ function renderTutorTurn(turn) {
 }
 
 function renderTutorSummary(turn) {
-  const chips = (list) => list.map((x) => `<span class="tutor-chip">${escapeHtml(x)}</span>`).join("");
+  const chips = (list) => list.map((x) => `<span class="tutor-chip">${mathText(x)}</span>`).join("");
   const blocks = [`<div class="tutor-summary-head"><i data-lucide="flag"></i><span>綜合講解</span></div>`];
-  if (turn.summary) blocks.push(`<p>${escapeHtml(turn.summary)}</p>`);
+  if (turn.summary) blocks.push(`<p class="tutor-math">${mathText(turn.summary)}</p>`);
   if (turn.conceptsPracticed && turn.conceptsPracticed.length) {
     blocks.push(`<div class="tutor-meta"><strong>這題練到</strong>${chips(turn.conceptsPracticed)}</div>`);
   }
@@ -812,6 +813,7 @@ function renderTutorSummary(turn) {
   card.className = "tutor-summary";
   card.innerHTML = blocks.join("");
   $("#tutorThread").appendChild(card);
+  typesetMath(card);
   scrollTutor();
   refreshIcons();
 }
@@ -821,8 +823,43 @@ function appendTutorBubble(variant, html) {
   bubble.className = `tutor-bubble ${variant}`;
   bubble.innerHTML = html;
   $("#tutorThread").appendChild(bubble);
+  typesetMath(bubble);
   scrollTutor();
   return bubble;
+}
+
+function mathText(value) {
+  return escapeHtml(String(value == null ? "" : value).replace(/\*\*/g, ""));
+}
+
+function typesetMath(element) {
+  if (!element || !window.renderMathInElement) return;
+  try {
+    window.renderMathInElement(element, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true }
+      ],
+      throwOnError: false
+    });
+  } catch (error) {
+    /* 渲染失敗就維持原始文字 */
+  }
+}
+
+function renderProblemPreview() {
+  const value = $("#tutorProblem").value.trim();
+  const preview = $("#tutorProblemPreview");
+  if (!value) {
+    preview.hidden = true;
+    preview.innerHTML = "";
+    return;
+  }
+  preview.hidden = false;
+  preview.innerHTML = `<span class="tutor-preview-label">看得懂的版本</span><div class="tutor-math">${mathText(value)}</div>`;
+  typesetMath(preview);
 }
 
 function setTutorInput(show) {
@@ -836,6 +873,7 @@ function resetTutor() {
   $("#tutorThread").innerHTML = `<div class="empty-state">先在左邊上傳題目，AI 會先問你想用什麼概念，再一步一步帶你解，最後給綜合講解。</div>`;
   setTutorInput(false);
   $("#tutorProblem").value = "";
+  renderProblemPreview();
   clearTutorPhoto();
   refreshIcons();
 }
@@ -921,6 +959,7 @@ async function recognizePhoto(dataUrl) {
     const data = await response.json();
     if (!data.success || !data.problem) throw new Error(data.error || "vision failed");
     textarea.value = data.problem;
+    renderProblemPreview();
     showToast("已辨識出題目，確認或修改後就能開始引導。");
   } catch (error) {
     console.error(error);

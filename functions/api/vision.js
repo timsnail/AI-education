@@ -23,9 +23,11 @@ const WAI_DESCRIBE_PROMPT =
 
 // 第二階段：文字模型從上面的描述中抽出「題目本身」，丟掉雜訊與任何被亂加的答案。
 const EXTRACT_SYSTEM =
-  "以下是一張「題目照片」的辨識內容，可能夾雜雜訊、描述文字或被多餘加上的答案。" +
-  "請從中整理出學生真正要解的『題目本身』，用繁體中文清楚重述一次，數學式用一般文字（例如 x^2）。" +
-  "只輸出題目，絕對不要解題、不要給答案、不要任何說明或開場白。";
+  "以下是一張「題目照片」的辨識內容，可能夾雜雜訊或被多餘加上的答案。請整理成學生看得懂的『題目本身』：\n" +
+  "- 用繁體中文、自然語句重述題目，就像課本或考卷上的題目那樣。\n" +
+  "- 數學式一律用 LaTeX，並用單個 $ 前後包起來（例如 $x^2$、$\\frac{1}{7}$，矩陣用 $\\begin{bmatrix}1 & 2 \\\\ 0 & 1\\end{bmatrix}$）。\n" +
+  "- 不要使用 markdown 標題或 ** 粗體，不要保留「Text and Math Expressions」「Figure / Chart / Table」這類標記，不要寫「沒有圖表」之類的話。\n" +
+  "- 只輸出題目本身，絕對不要解題、不要給答案、不要任何說明或開場白。";
 
 export async function onRequestGet(context) {
   return json({ success: true, message: "vision API is ready.", mode: detectMode(context?.env) });
