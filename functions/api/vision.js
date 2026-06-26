@@ -90,29 +90,55 @@ async function readWithClaude(env, mediaType, base64) {
 async function readWithWorkersAI(env, mediaType, base64) {
   const model = env.VISION_MODEL || DEFAULT_VISION_MODEL;
   const bytes = Array.from(base64ToBytes(base64));
+  const dataUrl = `data:${mediaType};base64,${base64}`;
 
-  // 多數 Workers AI 視覺模型用 image 位元組陣列；少數吃 messages + image_url，兩種都試。
   let output;
   try {
-    output = await env.AI.run(model, { image: bytes, prompt: VISION_PROMPT, max_tokens: 1024 });
+    output = await runVisionOnce(env.AI, model, bytes, dataUrl);
   } catch (error) {
-    output = await env.AI.run(model, {
+    // 部分 Meta 模型需先同意一次社群授權（錯誤碼 5016）。同意後重試一次。
+    if (needsLicenseAgreement(error)) {
+      await env.AI.run(model, { prompt: "agree" });
+      output = await runVisionOnce(env.AI, model, bytes, dataUrl);
+    } else {
+      throw error;
+    }
+  }
+
+  const text = extractText(output).trim();
+  if (!text) throw new Error("empty vision response");
+  return text.slice(0, 4000);
+}
+
+async function runVisionOnce(ai, model, bytes, dataUrl) {
+  // 多數 Workers AI 視覺模型用 image 位元組陣列；少數吃 messages + image_url。
+  try {
+    return await ai.run(model, { image: bytes, prompt: VISION_PROMPT, max_tokens: 1024 });
+  } catch (error) {
+    if (needsLicenseAgreement(error)) throw error; // 授權問題交給上層處理
+    return await ai.run(model, {
       max_tokens: 1024,
       messages: [
         {
           role: "user",
           content: [
             { type: "text", text: VISION_PROMPT },
-            { type: "image_url", image_url: { url: `data:${mediaType};base64,${base64}` } }
+            { type: "image_url", image_url: { url: dataUrl } }
           ]
         }
       ]
     });
   }
+}
 
-  const text = extractText(output).trim();
-  if (!text) throw new Error("empty vision response");
-  return text.slice(0, 4000);
+function needsLicenseAgreement(error) {
+  const msg = (error && error.message ? error.message : String(error)).toLowerCase();
+  return (
+    msg.includes("5016") ||
+    msg.includes("must submit") ||
+    msg.includes("community license") ||
+    msg.includes("'agree'")
+  );
 }
 
 function extractText(output) {
