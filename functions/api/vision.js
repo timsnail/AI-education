@@ -27,8 +27,8 @@ const WAI_TRANSCRIBE_PROMPT =
 const EXTRACT_SYSTEM =
   "以下是一張「題目照片」的辨識內容，可能夾雜雜訊或被多餘加上的答案。請整理成學生看得懂的『題目本身』：\n" +
   "- 用繁體中文、自然語句重述題目，就像課本或考卷上的題目那樣。\n" +
-  "- 數學式一律用 LaTeX，並用單個 $ 前後包起來（例如 $x^2$、$\\frac{1}{7}$，矩陣用 $\\begin{bmatrix}1 & 2 \\\\ 0 & 1\\end{bmatrix}$）。\n" +
-  "- 不要使用 markdown 標題或 ** 粗體，不要保留「Text and Math Expressions」「Figure / Chart / Table」這類標記，不要寫「沒有圖表」之類的話。\n" +
+  "- 每一個數學式都要『單獨』用一對單個 $ 包起來（行內），例如分數寫成 $\\frac{1}{7}$、矩陣寫成 $A=\\begin{bmatrix}1 & 2 \\\\ 3 & 4\\end{bmatrix}$。\n" +
+  "- 絕對不要用 \\begin{align}、\\begin{align*} 或 $$ 把整段數學包起來；不要用 markdown 標題或 ** 粗體；不要保留「Text and Math Expressions / Figure / Table」這類標記。\n" +
   "- 只輸出題目本身，絕對不要解題、不要給答案、不要任何說明或開場白。";
 
 export async function onRequestGet(context) {
